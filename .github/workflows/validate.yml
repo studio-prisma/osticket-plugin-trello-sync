@@ -1,0 +1,146 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    # Weekly, Monday 06:00 UTC — catches PHP release drift and Trello API changes.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: PHP Lint (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.0", "8.1", "8.2", "8.3", "8.4"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl
+          coverage: none
+
+      - name: Syntax check all production files
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" || fail=1
+          done < <(find . -name '*.php' -not -path './tests/*' -print0)
+          exit $fail
+
+  unit:
+    name: Unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: curl
+          coverage: none
+
+      # error_reporting=E_ALL, damit Deprecations die Suite rot machen statt
+      # unbemerkt durchzulaufen. Jede Datei hat exit 0 = gruen, 1 = rot.
+      - name: Unit tests
+        run: |
+          fail=0
+          for t in tests/test_signature.php tests/test_board.php tests/test_rules.php tests/test_headers.php; do
+            echo "::group::$t"
+            php -d error_reporting=E_ALL "$t" || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail
+
+  structure:
+    name: Structure check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # Struktureller Integritaetscheck gegen stille Truncation. Ersetzt kein
+      # php -l, faengt aber abgeschnittene Dateien, die syntaktisch gueltig sind.
+      - name: Structural integrity
+        run: python3 tools/verify_structure.py *.php tests/*.php
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Identitaets-Gate aus CONVENTIONS §1. Die reservierten Doku-Ranges sind
+      # erlaubt, alles andere bricht ab.
+      - name: No identity leaks, no hardcoded credentials
+        run: |
+          pattern='pfitzner|jonas|propstack|scout24|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'
+          # Ausgenommen: die reservierten Doku-Ranges, und die drei Dateien, die
+          # das Suchmuster selbst enthalten (dieser Workflow, das Build-Skript,
+          # die Regel in CONTRIBUTING). Sonst schlaegt das Gate auf sich selbst an.
+          if grep -rniE "$pattern" . \
+               --exclude-dir=.git --exclude-dir=dist \
+               --exclude=validate.yml --exclude=build-zip.sh --exclude=CONTRIBUTING.md \
+             | grep -viE '192\.0\.2\.|203\.0\.113\.|198\.51\.100\.|127\.0\.0\.1' ; then
+            echo "::error::Identity leak or real host in the tree — see CONVENTIONS §1"
+            exit 1
+          fi
+          creds='(api[_-]?key|secret|token|password)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}'
+          if grep -rniE "$creds" . --exclude-dir=.git --exclude-dir=dist \
+             | grep -viE 'example|placeholder|<your|dummy|0123456789' ; then
+            echo "::error::Possible hardcoded credential"
+            exit 1
+          fi
+
+  actionlint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: actionlint
+        uses: raven-actions/actionlint@v2
+
+  # Single aggregating context for the branch ruleset. Required-status-check names
+  # are job names, and the lint matrix produces one name per PHP version — those
+  # would have to be re-registered on every version bump. This job is the only
+  # context the ruleset knows about; the matrix can change freely underneath it.
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    needs: [lint, unit, structure, secrets, actionlint]
+    if: always()
+    steps:
+      - name: Fail unless every job succeeded
+        if: >-
+          contains(needs.*.result, 'failure') ||
+          contains(needs.*.result, 'cancelled') ||
+          contains(needs.*.result, 'skipped')
+        run: |
+          echo "lint=${{ needs.lint.result }}"
+          echo "unit=${{ needs.unit.result }}"
+          echo "structure=${{ needs.structure.result }}"
+          echo "secrets=${{ needs.secrets.result }}"
+          echo "actionlint=${{ needs.actionlint.result }}"
+          exit 1
