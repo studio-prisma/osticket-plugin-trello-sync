@@ -80,8 +80,10 @@ jobs:
 
       # Struktureller Integritaetscheck gegen stille Truncation. Ersetzt kein
       # php -l, faengt aber abgeschnittene Dateien, die syntaktisch gueltig sind.
+      # ./ vor dem Glob, sonst koennte ein Dateiname mit fuehrendem Bindestrich
+      # als Option gelesen werden (shellcheck SC2035).
       - name: Structural integrity
-        run: python3 tools/verify_structure.py *.php tests/*.php
+        run: python3 tools/verify_structure.py ./*.php ./tests/*.php
 
   secrets:
     name: Secret scan
@@ -105,9 +107,13 @@ jobs:
             echo "::error::Identity leak or real host in the tree — see CONVENTIONS §1"
             exit 1
           fi
+          # Test-Fixtures muessen erkennbar unecht sein: 'do-not-use', 'test-',
+          # 'example', 'dummy'. Was diesen Marker nicht traegt, wird als echt
+          # behandelt und bricht ab — lieber ein Fehlalarm als ein Leak.
           creds='(api[_-]?key|secret|token|password)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}'
           if grep -rniE "$creds" . --exclude-dir=.git --exclude-dir=dist \
-             | grep -viE 'example|placeholder|<your|dummy|0123456789' ; then
+               --exclude=validate.yml --exclude=build-zip.sh \
+             | grep -viE 'example|placeholder|<your|dummy|do-not-use|test-secret|0123456789' ; then
             echo "::error::Possible hardcoded credential"
             exit 1
           fi
