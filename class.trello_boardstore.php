@@ -94,6 +94,22 @@ class TrelloBoardStore {
         return db_query($sql, false) !== false;
     }
 
+    /**
+     * Ist die Registrierung dieses Boards in den letzten $minutes Minuten
+     * fehlgeschlagen? Grundlage fuer den Backoff in ensureWebhooks().
+     */
+    public static function failedWithin($boardId, $minutes) {
+        if (!TrelloBoard::isValidTrelloId($boardId)) {
+            return false;
+        }
+        $res = db_query('SELECT 1 FROM ' . TRELLO_BOARD_TABLE
+            . ' WHERE board_id = ' . db_input($boardId)
+            . ' AND webhook_id IS NULL AND last_error IS NOT NULL'
+            . ' AND updated_at > (NOW() - INTERVAL ' . max(1, (int) $minutes) . ' MINUTE)'
+            . ' LIMIT 1', false);
+        return $res && db_num_rows($res) > 0;
+    }
+
     public static function forget($boardId) {
         if (!TrelloBoard::isValidTrelloId($boardId)) {
             return false;

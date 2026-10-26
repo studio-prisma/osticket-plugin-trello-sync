@@ -32,10 +32,20 @@ if (!empty($_SERVER['REMOTE_ADDR']) || !empty($_SERVER['REQUEST_METHOD'])) {
 }
 
 // --- osTicket laden ------------------------------------------------------
-$root = realpath(dirname(__FILE__) . '/../../..');
-if (!$root || !is_file($root . '/main.inc.php')) {
-    fwrite(STDERR, "osTicket-Wurzel nicht gefunden (erwartet: $root/main.inc.php).\n"
-        . "Das Skript muss unter include/plugins/<plugin>/ liegen.\n");
+// osTicket-Wurzel suchen. Im Paket liegen die Skripte unter
+// include/plugins/trello-sync/tools/, von Hand kopiert auch eine Ebene hoeher;
+// ein fester Pfad wie '../../..' passt nur zu einem der beiden Orte.
+$root = null;
+for ($dir = dirname(__FILE__), $i = 0; $i < 5; $i++, $dir = dirname($dir)) {
+    if (is_file($dir . '/main.inc.php')) {
+        $root = realpath($dir);
+        break;
+    }
+}
+if (!$root) {
+    fwrite(STDERR, "osTicket-Wurzel nicht gefunden: keine main.inc.php in den fuenf "
+        . "Verzeichnissen ueber " . dirname(__FILE__) . ".\n"
+        . "Das Skript muss unter include/plugins/trello-sync/ liegen.\n");
     exit(1);
 }
 require_once $root . '/main.inc.php';

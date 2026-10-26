@@ -222,4 +222,39 @@ class TrelloRules {
         }
         return 'none';
     }
+
+    /**
+     * Darf ein Ticketstatus dieses Zustands aus Trello gesetzt werden?
+     *
+     * POSITIVLISTE wie beim Notizfilter. osTicket kennt neben open und closed
+     * auch archived und deleted; ein Status mit Zustand deleted loescht das
+     * Ticket. Den Listennamen bestimmt jedes Board-Mitglied — eine Liste
+     * namens "Deleted" darf deshalb nie einen solchen Status ausloesen.
+     */
+    public static function isSyncableStatusState($state) {
+        if (!is_string($state)) {
+            return false;
+        }
+        return in_array(strtolower(trim($state)), array('open', 'closed'), true);
+    }
+
+    /**
+     * Soll dieser Request die Webhook-Registrierung pruefen?
+     *
+     * Plugin::bootstrap() laeuft bei jedem osTicket-Request, auch bei anonymen
+     * Aufrufen des Kundenportals. Die Registrierung kann Trello-Requests mit
+     * Timeout ausloesen und schreibt bei Fehlkonfiguration ins Syslog — das
+     * soll ein Besucher nicht anstossen koennen. Deshalb nur im Staff-Bereich
+     * (scp/) und im Cron-Lauf (api/cron.php).
+     *
+     * @param string $scriptName  $_SERVER['SCRIPT_NAME'] des Requests
+     */
+    public static function shouldEnsureWebhooks($scriptName) {
+        $script = str_replace('\\', '/', (string) $scriptName);
+        if ($script === '') {
+            return false;
+        }
+        return strpos($script, '/scp/') !== false
+            || basename($script) === 'cron.php';
+    }
 }

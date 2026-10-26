@@ -168,5 +168,25 @@ check('Rand-Leerraum wird getrimmt',
 check('Umlaute bleiben erhalten',
     TrelloRules::tidyText("Grüße   aus  Köln"), "Grüße aus Köln");
 
+// Statuszustand: nur open/closed duerfen aus Trello gesetzt werden.
+check('Zustand open erlaubt', TrelloRules::isSyncableStatusState('open'), true);
+check('Zustand closed erlaubt', TrelloRules::isSyncableStatusState('closed'), true);
+check('Grossschreibung egal', TrelloRules::isSyncableStatusState(' Closed '), true);
+check('Zustand deleted gesperrt', TrelloRules::isSyncableStatusState('deleted'), false);
+check('Zustand archived gesperrt', TrelloRules::isSyncableStatusState('archived'), false);
+check('leerer Zustand gesperrt', TrelloRules::isSyncableStatusState(''), false);
+check('null gesperrt', TrelloRules::isSyncableStatusState(null), false);
+
+// Webhook-Registrierung: nur Staff-Bereich und Cron.
+check('scp-Seite prueft Webhooks', TrelloRules::shouldEnsureWebhooks('/scp/tickets.php'), true);
+check('scp im Unterverzeichnis', TrelloRules::shouldEnsureWebhooks('/support/scp/index.php'), true);
+check('Cron prueft Webhooks', TrelloRules::shouldEnsureWebhooks('/api/cron.php'), true);
+check('CLI-Cron mit relativem Pfad', TrelloRules::shouldEnsureWebhooks('api/cron.php'), true);
+check('Kundenportal nicht', TrelloRules::shouldEnsureWebhooks('/index.php'), false);
+check('Kunden-Login nicht', TrelloRules::shouldEnsureWebhooks('/login.php'), false);
+check('Webhook-Eingang nicht', TrelloRules::shouldEnsureWebhooks('/api/http.php'), false);
+check('Backslash-Pfad wird normalisiert', TrelloRules::shouldEnsureWebhooks('\\scp\\index.php'), true);
+check('leerer SCRIPT_NAME nicht', TrelloRules::shouldEnsureWebhooks(''), false);
+
 echo "\n$passed gruen, $failed rot\n";
 exit($failed === 0 ? 0 : 1);

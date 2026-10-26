@@ -443,12 +443,18 @@ class TrelloSyncService {
     }
 
     /**
-     * status_id => status_name
+     * status_id => status_name, nur Status mit Zustand open oder closed.
+     * Ein Status mit Zustand deleted wuerde das Ticket loeschen, archived
+     * es aus dem Betrieb nehmen; beides darf ein Listenname nicht ausloesen.
      */
     private function getStatusMap() {
         $out = array();
         try {
             foreach (TicketStatusList::getStatuses()->all() as $s) {
+                $state = method_exists($s, 'getState') ? $s->getState() : null;
+                if (!TrelloRules::isSyncableStatusState($state)) {
+                    continue;
+                }
                 $out[$s->getId()] = $s->getName();
             }
         } catch (Exception $e) {

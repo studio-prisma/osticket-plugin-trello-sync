@@ -22,6 +22,14 @@ Erste öffentliche Veröffentlichung. Alles davor lief unveröffentlicht auf ein
 - `tools/build-zip.sh` baut das Installationspaket reproduzierbar nach `dist/` und bricht bei hartkodierten Zugangsdaten ab.
 - CI: PHP-Lint über 8.0 bis 8.4, Unit-Tests unter `E_ALL`, struktureller Integritätscheck, Secret-Scan, `actionlint`, aggregierender `Gate`-Job als Required Check.
 
+### Sicherheit
+- **Ein Trello-Listenname kann keinen Ticketstatus mit Zustand `deleted` oder `archived` mehr auslösen.** Die Statuszuordnung nahm bisher alle osTicket-Status; ein Board-Mitglied konnte eine Liste „Deleted“ anlegen und eine Karte hineinschieben. Übernommen werden nur noch Status mit Zustand `open` oder `closed` (Positivliste, `TrelloRules::isSyncableStatusState()`).
+- **Die Webhook-Registrierung läuft nicht mehr bei jedem Request.** Bisher prüfte jeder osTicket-Aufruf, auch anonyme Besuche des Kundenportals, die Registrierung und setzte bei Boards ohne Webhook Trello-Requests mit bis zu 15 s Timeout ab, bei Fehlkonfiguration mit Syslog-Eintrag. Jetzt nur noch im Staff-Bereich und im Cron-Lauf, und ein fehlgeschlagenes Board wird frühestens nach 15 Minuten erneut versucht.
+
+### Behoben
+- Die CLI-Werkzeuge im Paket (`trello-sync/tools/`) fanden die osTicket-Wurzel nicht: sie suchten fest `../../..`, was nur eine Ebene höher stimmt. Sie gehen jetzt bis zu fünf Verzeichnisse nach oben, bis `main.inc.php` auftaucht. `tools/README.md` beschreibt den Paketinhalt jetzt so, wie er ist.
+- `tools/build-zip.sh` bricht ab, wenn `TrelloSyncService::VERSION` nicht zur Version in `plugin.php` passt. Die Version steht an zwei Stellen; bisher prüfte nur der Release-Workflow das Manifest.
+
 ### Entfernt
 - Der interne Planungsstand `SPEC.md` und der doppelte Plugin-Ordner sind nicht Teil des öffentlichen Repos. Die CLI-Werkzeuge liegen einmalig unter `tools/`.
 
