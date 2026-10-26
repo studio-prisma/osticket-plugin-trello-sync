@@ -61,6 +61,16 @@ if grep -rniE "pfitzner|jonas|propstack|scout24" "$PKG" ; then
   exit 1
 fi
 
+# Reproducible archive: every file gets the commit date, entries are sorted,
+# no extra fields. Building the same commit twice yields the same bytes, so a
+# rebuilt release keeps its checksum and its provenance attestation.
+EPOCH="$(git log -1 --format=%ct 2>/dev/null || true)"
+if [ -z "$EPOCH" ]; then
+  EPOCH="$(date +%s)"
+  echo "Note: not a git checkout, using the current time for file dates." >&2
+fi
+find "$STAGE" -exec touch -d "@$EPOCH" {} +
+
 mkdir -p dist
 rm -f "dist/trello-sync-${VERSION}.zip"
 
@@ -68,18 +78,25 @@ rm -f "dist/trello-sync-${VERSION}.zip"
 # (tools/verify_structure.py), deshalb der Fallback statt einer harten
 # Abhaengigkeit — sonst laesst sich das Paket nur in der CI bauen.
 if command -v zip >/dev/null 2>&1; then
-  ( cd "$STAGE" && zip -qr "trello-sync-${VERSION}.zip" trello-sync )
+  ( cd "$STAGE" && find trello-sync -type f | LC_ALL=C sort | TZ=UTC zip -X -q "trello-sync-${VERSION}.zip" -@ )
   mv "$STAGE/trello-sync-${VERSION}.zip" "dist/"
 elif command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
   PY="$(command -v python3 || command -v python)"
-  "$PY" - "$STAGE" "$ROOT/dist/trello-sync-${VERSION}.zip" <<'PYEOF'
-import os, sys, zipfile
-stage, out = sys.argv[1], sys.argv[2]
+  "$PY" - "$STAGE" "$ROOT/dist/trello-sync-${VERSION}.zip" "$EPOCH" <<'PYEOF'
+import os, sys, time, zipfile
+stage, out, epoch = sys.argv[1], sys.argv[2], int(sys.argv[3])
+stamp = time.gmtime(epoch)[:6]
+paths = []
+for root, dirs, files in os.walk(os.path.join(stage, "trello-sync")):
+    for f in files:
+        paths.append(os.path.join(root, f))
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    for root, _, files in os.walk(os.path.join(stage, "trello-sync")):
-        for f in sorted(files):
-            p = os.path.join(root, f)
-            z.write(p, os.path.relpath(p, stage).replace(os.sep, "/"))
+    for p in sorted(paths, key=lambda x: os.path.relpath(x, stage).replace(os.sep, "/")):
+        info = zipfile.ZipInfo(os.path.relpath(p, stage).replace(os.sep, "/"), stamp)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0o644 << 16
+        with open(p, "rb") as fh:
+            z.writestr(info, fh.read())
 PYEOF
 else
   echo "Neither zip nor python available — cannot build the archive." >&2
