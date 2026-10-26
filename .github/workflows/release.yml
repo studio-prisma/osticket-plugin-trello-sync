@@ -61,7 +61,9 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.name }}"
           VERSION="${TAG#v}"
-          ./tools/build-zip.sh "$VERSION"
+          # bash explicitly: a tag cut while the script lacked its executable
+          # bit (v0.6.0) must still build.
+          bash ./tools/build-zip.sh "$VERSION"
           echo "asset=dist/trello-sync-${VERSION}.zip" >> "$GITHUB_OUTPUT"
 
       - name: Extract CHANGELOG section for this version
