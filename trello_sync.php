@@ -38,6 +38,9 @@ class TrelloSyncPlugin extends Plugin {
 
     var $config_class = 'TrelloSyncConfig';
 
+    /** Mindestabstand zwischen zwei fehlgeschlagenen Webhook-Registrierungen */
+    const WEBHOOK_RETRY_MINUTES = 15;
+
     /** @var TrelloSyncConfig|null Referenz fuer den API-Controller */
     private static $activeConfig = null;
 
@@ -59,8 +62,12 @@ class TrelloSyncPlugin extends Plugin {
         // API-Routen registrieren
         Signal::connect('api', array('TrelloSyncPlugin', 'registerRoutes'));
 
-        // Webhooks fuer alle registrierten Boards sicherstellen
-        $this->ensureWebhooks();
+        // Webhooks fuer alle registrierten Boards sicherstellen — nur im
+        // Staff-Bereich und im Cron-Lauf, nie bei anonymen Requests.
+        $script = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
+        if (TrelloRules::shouldEnsureWebhooks($script)) {
+            $this->ensureWebhooks();
+        }
 
         // Ticket-Signale (verifiziert gegen 1.18.4)
         Signal::connect('ticket.created', array($this, 'onTicketCreated'), 'Ticket');
@@ -154,10 +161,12 @@ class TrelloSyncPlugin extends Plugin {
     /**
      * Stellt sicher, dass fuer jedes registrierte Board ein Webhook existiert.
      *
-     * Laeuft bei jedem Bootstrap, tut aber nur etwas fuer Boards ohne
-     * gespeicherte Webhook-ID. Ein Board, dessen Registrierung zuvor
-     * fehlgeschlagen ist, wird erneut versucht — der letzte Fehler steht
-     * dann im Board-Store und ist im Admin sichtbar.
+     * Laeuft bei Staff- und Cron-Requests, tut aber nur etwas fuer Boards
+     * ohne gespeicherte Webhook-ID. Ein Board, dessen Registrierung
+     * fehlgeschlagen ist, wird fruehestens nach WEBHOOK_RETRY_MINUTES erneut
+     * versucht; sonst wuerde jeder Seitenaufruf bei einem Trello-Ausfall
+     * einen Request mit Timeout absetzen. Der letzte Fehler steht im
+     * Board-Store und ist im Admin sichtbar.
      */
     private function ensureWebhooks() {
         $config = $this->getConfig();
@@ -209,6 +218,9 @@ class TrelloSyncPlugin extends Plugin {
         foreach ($boards as $board) {
             if (TrelloBoardStore::getWebhookId($board->boardId) !== null) {
                 continue; // bereits registriert
+            }
+            if (TrelloBoardStore::failedWithin($board->boardId, self::WEBHOOK_RETRY_MINUTES)) {
+                continue; // letzter Versuch ist zu frisch
             }
 
             if ($http === null) {

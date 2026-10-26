@@ -1,8 +1,8 @@
-# CLI-Werkzeuge — nicht Teil des Plugins
+# CLI-Werkzeuge
 
-Diese Skripte gehören **nicht** dauerhaft auf das Live-System. Sie liegen bewusst außerhalb von `trello-sync/`, damit sie nicht versehentlich mit hochgeladen werden.
+Das Installationspaket enthält die drei Skripte unter `trello-sync/tools/`, damit sie bei einer Störung sofort zur Hand sind. Dauerhaft auf dem Live-System liegen bleiben sollten sie trotzdem nicht: nach Gebrauch `tools/` löschen.
 
-## Warum getrennt
+## Warum nicht liegen lassen
 
 `include/` ist zwar per `.htaccess` mit `Deny from all` geschützt — unter Plesk liefert nginx statische Dateien aber häufig direkt aus und umgeht Apache dabei. Ein Diagnoseskript im Plugin-Ordner kann damit über das Web erreichbar sein.
 
@@ -10,9 +10,9 @@ Alle drei Skripte verweigern zwar den Dienst außerhalb der Kommandozeile (`PHP_
 
 ## Verwendung
 
-Bei Bedarf einzeln nach `include/plugins/trello-sync/` kopieren, ausführen, **danach wieder löschen**.
+Aus dem Plugin-Ordner aufrufen, **danach `tools/` wieder löschen**. Wer sie gelöscht hat und erneut braucht, kopiert sie aus dem Paket zurück — nach `trello-sync/tools/` oder direkt nach `trello-sync/`.
 
-Die Skripte erwarten diesen Ort: sie ermitteln die osTicket-Wurzel über `../../..`.
+Die Skripte suchen die osTicket-Wurzel, indem sie bis zu fünf Verzeichnisse nach oben gehen, bis eine `main.inc.php` auftaucht. Beide Orte funktionieren.
 
 | Skript | Zweck | Wann |
 |---|---|---|
@@ -22,12 +22,12 @@ Die Skripte erwarten diesen Ort: sie ermitteln die osTicket-Wurzel über `../../
 
 ```bash
 cd /pfad/zu/osticket/include/plugins/trello-sync
-/opt/plesk/php/8.3/bin/php diagnose.php --out=/pfad/ausserhalb/httpdocs/report.txt
+/opt/plesk/php/8.3/bin/php tools/diagnose.php --out=/pfad/ausserhalb/httpdocs/report.txt
 ```
 
 `--out=` schreibt zusätzlich in eine Datei (Rechte `0600`). Der Pfad sollte **außerhalb** des Dokumentenstamms liegen — der Report enthält Board-IDs, Member-ID und Callback-URL im Klartext. Zugangsdaten werden maskiert.
 
-Nach dem Lesen: Report und Skript löschen.
+Nach dem Lesen: Report und `tools/` löschen.
 
 ## Hinweis zu OPcache
 

@@ -24,6 +24,14 @@ if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
   exit 1
 fi
 
+# TrelloSyncService::VERSION appears in the plugin's error messages, which is
+# how a stale OPcache gets spotted. It must match the manifest.
+SERVICE_VERSION="$(grep -oE "const VERSION[[:space:]]*=[[:space:]]*'[^']+'" class.trello_sync_service.php | head -1 | sed -E "s/.*'([^']+)'\$/\1/")"
+if [ "$SERVICE_VERSION" != "$MANIFEST_VERSION" ]; then
+  echo "Version mismatch: TrelloSyncService::VERSION is '$SERVICE_VERSION', plugin.php declares '$MANIFEST_VERSION'." >&2
+  exit 1
+fi
+
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
