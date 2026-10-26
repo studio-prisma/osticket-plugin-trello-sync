@@ -224,4 +224,6 @@ Trello is a US provider. Everything synchronised leaves the EU. That is a deploy
 
 ## Rollback
 
-Disable the plugin in the admin panel. Nothing is deleted, on either side. To remove it entirely, uninstall it in the plugin list and delete `include/plugins/trello-sync/`. The mapping table `ost_trello_map` stays behind — drop it manually if you want a clean slate.
+Disable the plugin in the admin panel. Nothing is deleted, on either side. To remove it entirely, uninstall it in the plugin list and delete `include/plugins/trello-sync/`. **Uninstalling is not reversible:** it deletes the webhooks at Trello and drops both tables, `ost_trello_map` (ticket ↔ card links) and `ost_trello_board`. Back them up first if you may need the links again.
+
+**Updating** means replacing the folder contents under the **same folder name**. osTicket finds an installed plugin by its install path and keeps its configuration under that installation; do not uninstall to update.
