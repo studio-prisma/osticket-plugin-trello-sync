@@ -17,8 +17,8 @@ Erste öffentliche Veröffentlichung. Alles davor lief unveröffentlicht auf ein
 ### Geändert
 - Der Release-Workflow liest den Tag über `env` und akzeptiert nur `vX.Y.Z` und `vX.Y.Z-rc.N`, statt den Tag direkt in Shell-Code einzusetzen.
 
-### Geändert — BRECHEND für Vorab-Installationen
-- **Plugin-ID ist jetzt `studio-prisma:trello-sync`.** osTicket schlüsselt die gespeicherte Plugin-Konfiguration über diese ID. Wer eine unveröffentlichte Vorabversion einsetzt, verliert beim Update die Einstellungen und muss Board-Zuordnung, API-Key, Token und Secret neu setzen. **Vor dem Update die Konfiguration abschreiben.**
+### Geändert — Vorab-Installationen: Ordnernamen beibehalten
+- **Plugin-ID ist jetzt `studio-prisma:trello-sync`.** Für bestehende Installationen ist das unkritisch: osTicket 1.18 findet ein installiertes Plugin über seinen Installationspfad (`include/plugins/<ordner>`) und legt die Konfiguration unter `plugin.<DB-ID>.instance.<n>` ab; die Manifest-ID dient nur der Signaturprüfung von PHAR-Paketen (`include/class.plugin.php`). Wer den Plugin-Ordner **unter demselben Namen** ersetzt, behält alle Einstellungen. Ein anderer Ordnername ist eine neue Installation mit leerer Konfiguration. Das alte Plugin dann **nicht** deinstallieren, solange die Mapping-Daten gebraucht werden: die Deinstallation entfernt die Webhooks bei Trello und löscht beide Tabellen. *(Korrigiert am 2026-10-26: die erste Fassung dieser Notiz sagte fälschlich einen Verlust der Einstellungen voraus.)*
 - `author` und `url` im Manifest zeigen auf studio-prisma.
 
 ### Hinzugefügt
