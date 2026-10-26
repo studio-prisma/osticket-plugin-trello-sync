@@ -8,7 +8,14 @@ Solange die Hauptversion `0` ist, gilt: Minor-Sprünge können brechende Änderu
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] — 2026-10-26
+
 Erste öffentliche Veröffentlichung. Alles davor lief unveröffentlicht auf einer einzelnen Instanz.
+
+### Geändert
+- Der Release-Workflow liest den Tag über `env` und akzeptiert nur `vX.Y.Z` und `vX.Y.Z-rc.N`, statt den Tag direkt in Shell-Code einzusetzen.
 
 ### Geändert — BRECHEND für Vorab-Installationen
 - **Plugin-ID ist jetzt `studio-prisma:trello-sync`.** osTicket schlüsselt die gespeicherte Plugin-Konfiguration über diese ID. Wer eine unveröffentlichte Vorabversion einsetzt, verliert beim Update die Einstellungen und muss Board-Zuordnung, API-Key, Token und Secret neu setzen. **Vor dem Update die Konfiguration abschreiben.**

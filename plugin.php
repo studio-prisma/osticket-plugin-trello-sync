@@ -15,7 +15,7 @@
 
 return array(
     'id'          => 'studio-prisma:trello-sync',
-    'version'     => '0.5.9',
+    'version'     => '0.6.0',
     'name'        => 'Trello Sync',
     'author'      => 'studio-prisma',
     'description' => 'Bidirektionale Synchronisation zwischen osTicket und Trello. '

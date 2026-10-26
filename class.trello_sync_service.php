@@ -20,7 +20,7 @@ class TrelloSyncService {
      * erkennbar ist, WELCHER Stand tatsaechlich ausgefuehrt wird.
      * Bei aktivem OPcache kann das vom hochgeladenen Stand abweichen.
      */
-    const VERSION = '0.5.9';
+    const VERSION = '0.6.0';
 
     /** @var TrelloHttp|null */
     private $http = null;
