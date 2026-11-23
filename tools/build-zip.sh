@@ -55,10 +55,16 @@ if grep -rniE "(api[_-]?key|token|secret|password)[[:space:]]*=[[:space:]]*['\"]
   exit 1
 fi
 
-# Same gate as CI: no identity leaks in a public artifact.
-if grep -rniE "pfitzner|jonas|propstack|scout24" "$PKG" ; then
-  echo "Refusing to build: identity leak in staged files (CONVENTIONS §1)." >&2
-  exit 1
+# Same gate as CI: no identity leaks in a public artifact. The pattern comes from
+# the environment (secret IDENTITY_PATTERN), never from the repository; on a hit
+# only file names are printed, never the matching text.
+if [ -n "${IDENTITY_PATTERN:-}" ]; then
+  if grep -rIliE -- "$IDENTITY_PATTERN" "$PKG" ; then
+    echo "Refusing to build: identity leak in staged files (CONVENTIONS §1)." >&2
+    exit 1
+  fi
+else
+  echo "Note: IDENTITY_PATTERN not set, identity check skipped (CI runs it on every push)." >&2
 fi
 
 # Reproducible archive: every file gets the commit date, entries are sorted,
