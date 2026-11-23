@@ -156,6 +156,12 @@ class TrelloSyncPlugin extends Plugin {
         $dispatcher->append(
             url_get('^/trello$', array('TrelloSyncApiController', 'probe'))
         );
+        // Trello prueft die Callback-URL beim Anlegen des Webhooks per HEAD.
+        // UrlMatcher vergleicht REQUEST_METHOD exakt, url_get() greift
+        // dafuer nicht; ohne diese Route scheitert jede Registrierung.
+        $dispatcher->append(
+            url('^/trello$', array('TrelloSyncApiController', 'probe'), false, 'HEAD')
+        );
     }
 
     /**

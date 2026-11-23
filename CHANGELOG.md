@@ -10,6 +10,25 @@ Solange die Hauptversion `0` ist, gilt: Minor-Sprünge können brechende Änderu
 
 ---
 
+## [0.6.1] — 2026-11-23
+
+### Sicherheit
+- **Nach einem Board-Wechsel gehen Agenten-Antworten nicht mehr an den früheren Kunden.** Wurde das Board-Feld eines Tickets geleert und später ein anderes Board gewählt, reaktivierte das Plugin das alte Mapping, ohne die Karte zu verschieben. Jede öffentliche Antwort landete danach als Kommentar auf dem Board des früheren Kunden. Jetzt wird die Karte zuerst auf das neue Board verschoben; schlägt das fehl, bleibt der Sync stillgelegt.
+- **Das Mapping übernimmt das neue Board.** `TrelloMap::link()` aktualisierte bei einer bestehenden Verknüpfung nur den Zeitstempel. Nach einem Board-Wechsel zeigte das Mapping weiter auf das alte Board, und jedes weitere Ticket-Update verschob die Karte erneut.
+- **Eingehende Trello-Ereignisse gelten nur noch für aktive Mappings des Boards, von dem sie kommen.** Kommentare und Listenwechsel wurden bisher jeder Karte mit Mapping zugeordnet, auch einem stillgelegten Mapping oder einer Karte, die zu einem anderen Board gehört. Neuer Lookup `TrelloMap::getActiveTicketIdByCard($cardId, $boardId)`.
+- **Trello-Kommentare werden als Text gespeichert, nicht als HTML.** Bei aktivem Rich-Text übernahm osTicket Links und Bilder aus dem Kommentar in die interne Notiz (Phishing-Links, Tracking-Pixel), und Text nach einem `<` wurde abgeschnitten. Die Notiz ist jetzt ein Text-Eintrag mit dem vollständigen Kommentar.
+- **Unsignierte Webhook-Requests fluten das osTicket-Systemprotokoll nicht mehr.** Jeder abgewiesene POST schrieb eine Warnung in die Datenbank. Jetzt geht jede Meldung ins PHP-Error-Log, ins osTicket-Systemprotokoll höchstens eine je Art und 15 Minuten (`TrelloLog::warnThrottled()`). Gilt auch für zu große Payloads.
+
+### Behoben
+- **Die Webhook-Registrierung bei Trello scheiterte immer.** Trello prüft die Callback-URL per `HEAD`; die Route war nur für `GET` angelegt, osTicket antwortete mit 400. Neue Route für `HEAD`.
+
+### Tests
+- `tests/test_mapping_binding.php`: Board-Wechsel, Stilllegung, Fremd-Board-Ereignisse und Kommentar-Format, mit der echten `TrelloMap` gegen eine In-Memory-Tabelle. Gegen 0.6.0 schlagen 11 Prüfungen fehl.
+- `tests/test_log_throttle.php`: 200 unsignierte Requests ergeben einen Syslog-Eintrag.
+- Beide laufen im CI-Job `Unit`.
+
+---
+
 ## [0.6.0] — 2026-10-26
 
 Erste öffentliche Veröffentlichung. Alles davor lief unveröffentlicht auf einer einzelnen Instanz.
