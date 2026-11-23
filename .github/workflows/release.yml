@@ -60,6 +60,8 @@ jobs:
 
       - name: Build install package
         id: build
+        env:
+          IDENTITY_PATTERN: ${{ secrets.IDENTITY_PATTERN }}
         run: |
           TAG="${{ steps.tag.outputs.name }}"
           VERSION="${TAG#v}"

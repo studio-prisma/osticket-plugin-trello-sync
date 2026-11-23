@@ -85,39 +85,6 @@ jobs:
       - name: Structural integrity
         run: python3 tools/verify_structure.py ./*.php ./tests/*.php
 
-  secrets:
-    name: Secret scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      # Identitaets-Gate aus CONVENTIONS §1. Die reservierten Doku-Ranges sind
-      # erlaubt, alles andere bricht ab.
-      - name: No identity leaks, no hardcoded credentials
-        run: |
-          pattern='pfitzner|jonas|propstack|scout24|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'
-          # Ausgenommen: die reservierten Doku-Ranges, und die drei Dateien, die
-          # das Suchmuster selbst enthalten (dieser Workflow, das Build-Skript,
-          # die Regel in CONTRIBUTING). Sonst schlaegt das Gate auf sich selbst an.
-          if grep -rniE "$pattern" . \
-               --exclude-dir=.git --exclude-dir=dist \
-               --exclude=validate.yml --exclude=build-zip.sh --exclude=CONTRIBUTING.md \
-             | grep -viE '192\.0\.2\.|203\.0\.113\.|198\.51\.100\.|127\.0\.0\.1' ; then
-            echo "::error::Identity leak or real host in the tree — see CONVENTIONS §1"
-            exit 1
-          fi
-          # Test-Fixtures muessen erkennbar unecht sein: 'do-not-use', 'test-',
-          # 'example', 'dummy'. Was diesen Marker nicht traegt, wird als echt
-          # behandelt und bricht ab — lieber ein Fehlalarm als ein Leak.
-          creds='(api[_-]?key|secret|token|password)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}'
-          if grep -rniE "$creds" . --exclude-dir=.git --exclude-dir=dist \
-               --exclude=validate.yml --exclude=build-zip.sh \
-             | grep -viE 'example|placeholder|<your|dummy|do-not-use|test-secret|0123456789' ; then
-            echo "::error::Possible hardcoded credential"
-            exit 1
-          fi
-
   actionlint:
     name: Workflow lint
     runs-on: ubuntu-latest
@@ -131,9 +98,11 @@ jobs:
   # Zentraler Security-Scan: gitleaks, TruffleHog, Trivy, Semgrep (alle blockierend).
   # Semgrep blockiert nur neue Funde. Version: Commit des Release-Tags, siehe Kommentar.
   security:
-    uses: studio-prisma/github-config-security-workflow/.github/workflows/security.yml@346fbc812810930cf8916ba683ceab0b1dbef033 # v1.0.1
+    uses: studio-prisma/github-config-security-workflow/.github/workflows/security.yml@510cea39c4ecb83fb25fdfca88649dc014eae883 # v1.1.0
     with:
       semgrep-rules: "p/php p/security-audit"
+    secrets:
+      identity-pattern: ${{ secrets.IDENTITY_PATTERN }}
 
   # Single aggregating context for the branch ruleset. Required-status-check names
   # are job names, and the lint matrix produces one name per PHP version — those
@@ -142,7 +111,7 @@ jobs:
   gate:
     name: Gate
     runs-on: ubuntu-latest
-    needs: [lint, unit, structure, secrets, security, actionlint]
+    needs: [lint, unit, structure, security, actionlint]
     if: always()
     steps:
       - name: Fail unless every job succeeded
@@ -154,6 +123,5 @@ jobs:
           echo "lint=${{ needs.lint.result }}"
           echo "unit=${{ needs.unit.result }}"
           echo "structure=${{ needs.structure.result }}"
-          echo "secrets=${{ needs.secrets.result }}"
           echo "actionlint=${{ needs.actionlint.result }}"
           exit 1
