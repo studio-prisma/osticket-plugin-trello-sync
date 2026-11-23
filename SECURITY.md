@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 0.5.x | ✅ |
-| < 0.5 | ❌ |
+| 0.6.x | ✅ |
+| < 0.6 | ❌ |
 
 While the major version is `0`, only the latest minor receives fixes. There are no backports.
 
@@ -37,7 +37,7 @@ A report on any of the following is a finding:
 These are documented design decisions, not defects. A report on them will be closed with a link here:
 
 - **No IP allowlist, and `X-Real-IP` / `X-Forwarded-For` are ignored.** Both headers are client-settable. The reference implementation this plugin replaces checked only `X-Real-IP` against four hard-coded 2016-era AWS addresses, which left the endpoint effectively unauthenticated. HMAC verification replaces that entirely — adding an allowlist on top would suggest a guarantee it cannot give.
-- **Identical `401` for every rejection.** Reasons go to the osTicket log only. Distinguishable errors would turn the endpoint into an oracle. Debugging happens server-side with `tools/diagnose.php`.
+- **Identical `401` for every rejection.** Reasons go to the server side only: every rejection to the PHP error log, at most one per kind and 15 minutes to the osTicket system log. Distinguishable errors would turn the endpoint into an oracle. Debugging happens server-side with `tools/diagnose.php`.
 - **Trello is a US provider.** Anything synchronised to a board leaves the EU. That is a deployment decision for the operator, including the data-processing agreement and the record of processing activities. The plugin makes the boundary controllable (opt-in per ticket, no internal notes) but cannot make it disappear.
 - **Operator-supplied board configuration is trusted.** The board registry is maintained by osTicket administrators. A malicious administrator is not part of the threat model.
 - **`tools/*.php` are CLI scripts.** They are not routed over HTTP by osTicket and expect a shell with filesystem access. Reachability of these files through a misconfigured web server is a server configuration issue, not a plugin issue — but tell us anyway if the plugin's own instructions caused it.

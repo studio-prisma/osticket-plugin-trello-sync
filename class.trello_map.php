@@ -73,8 +73,12 @@ class TrelloMap {
     }
 
     /**
-     * Legt eine Verknuepfung an. Idempotent: existiert sie bereits, wird
-     * nur der Zeitstempel aktualisiert.
+     * Legt eine Verknuepfung an. Idempotent: existiert sie bereits, werden
+     * Board und Zeitstempel aktualisiert.
+     *
+     * Das Board MUSS im Upsert mitgeschrieben werden. Bis 0.6.0 blieb nach
+     * einem Board-Wechsel das alte Board stehen; das Mapping zeigte dann auf
+     * den Kunden, dem das Ticket nicht mehr gehoert.
      */
     public static function link($ticketId, $cardId, $boardId) {
         $ticketId = (int) $ticketId;
@@ -84,12 +88,15 @@ class TrelloMap {
             return false;
         }
 
+        // Board-ID direkt statt VALUES(board_id): VALUES() im UPDATE-Teil ist
+        // in MySQL 8.0.20+ veraltet.
         $sql = 'INSERT INTO ' . TRELLO_SYNC_TABLE . ' '
              . '(ticket_id, card_id, board_id, created_at, updated_at) VALUES ('
              . db_input($ticketId) . ', '
              . db_input($cardId) . ', '
              . db_input($boardId) . ', NOW(), NOW()) '
-             . 'ON DUPLICATE KEY UPDATE updated_at = NOW()';
+             . 'ON DUPLICATE KEY UPDATE board_id = ' . db_input($boardId)
+             . ', updated_at = NOW()';
 
         return db_query($sql, false) !== false;
     }
@@ -168,9 +175,35 @@ class TrelloMap {
     }
 
     /**
-     * Aufloesung Karte -> Ticket. Der EINZIGE erlaubte Weg, aus einem
-     * eingehenden Webhook eine Ticket-ID zu gewinnen. Es wird nie eine
-     * ID aus dem Payload direkt als Ticket-ID interpretiert.
+     * Aufloesung Karte -> Ticket fuer eingehende Webhooks. Der EINZIGE
+     * erlaubte Weg, aus einem Trello-Ereignis eine Ticket-ID zu gewinnen.
+     * Es wird nie eine ID aus dem Payload direkt als Ticket-ID interpretiert.
+     *
+     * Mandantenbindung: Treffer nur, wenn das Mapping aktiv ist UND auf das
+     * Board zeigt, von dem das Ereignis kommt. Die Signatur belegt nur
+     * "echt von Trello", nicht "gehoert zu diesem Kunden".
+     *
+     * @return int|null
+     */
+    public static function getActiveTicketIdByCard($cardId, $boardId) {
+        if (!self::isValidTrelloId($cardId) || !self::isValidTrelloId($boardId)) {
+            return null;
+        }
+        $res = db_query('SELECT ticket_id FROM ' . TRELLO_SYNC_TABLE
+            . ' WHERE card_id = ' . db_input($cardId)
+            . ' AND board_id = ' . db_input($boardId)
+            . " AND status = 'active' LIMIT 1", false);
+        if ($res && db_num_rows($res)) {
+            list($ticketId) = db_fetch_row($res);
+            return (int) $ticketId;
+        }
+        return null;
+    }
+
+    /**
+     * Gibt es zu dieser Karte irgendein Mapping, egal welcher Status und
+     * welches Board? Nur fuer die Dublettenpruefung beim Anlegen, NIE, um
+     * ein eingehendes Ereignis einem Ticket zuzuordnen.
      */
     public static function getTicketId($cardId) {
         if (!self::isValidTrelloId($cardId)) {

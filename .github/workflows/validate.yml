@@ -59,7 +59,8 @@ jobs:
       - name: Unit tests
         run: |
           fail=0
-          for t in tests/test_signature.php tests/test_board.php tests/test_rules.php tests/test_headers.php; do
+          for t in tests/test_signature.php tests/test_board.php tests/test_rules.php tests/test_headers.php \
+                   tests/test_mapping_binding.php tests/test_log_throttle.php; do
             echo "::group::$t"
             php -d error_reporting=E_ALL "$t" || fail=1
             echo "::endgroup::"

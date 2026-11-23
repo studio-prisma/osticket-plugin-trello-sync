@@ -55,8 +55,9 @@ class TrelloSyncApiController extends ApiController {
         }
 
         if (strlen($rawBody) > self::MAX_BODY_BYTES) {
-            $ost->logWarning('Trello Sync',
-                'Webhook-Payload ueber Limit verworfen (' . strlen($rawBody) . ' Bytes)', false);
+            // Gedrosselt: von aussen beliebig oft ausloesbar.
+            TrelloLog::warnThrottled('oversize',
+                'Webhook-Payload ueber Limit verworfen (' . strlen($rawBody) . ' Bytes)');
             return $this->deny();
         }
 
@@ -66,9 +67,10 @@ class TrelloSyncApiController extends ApiController {
         $header      = TrelloSignature::extractHeader($_SERVER);
 
         if (!TrelloSignature::isValid($rawBody, $callbackUrl, $secret, $header)) {
-            // Kein Detail nach aussen. Der Grund steht nur im Server-Log.
-            $ost->logWarning('Trello Sync',
-                'Webhook mit ungueltiger oder fehlender Signatur abgewiesen.', false);
+            // Kein Detail nach aussen. Der Grund steht nur im Server-Log,
+            // gedrosselt: jeder anonyme POST landet hier.
+            TrelloLog::warnThrottled('bad-signature',
+                'Webhook mit ungueltiger oder fehlender Signatur abgewiesen.');
             return $this->deny();
         }
 

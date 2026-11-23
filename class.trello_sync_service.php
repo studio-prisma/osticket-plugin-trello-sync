@@ -192,8 +192,19 @@ class TrelloSyncService {
      * Legt eine Karte fuer ein Ticket an und verknuepft sie.
      */
     private function createCardFor($ticket, TrelloBoard $board) {
-        if (TrelloMap::getCardId($ticket->getId())) {
+        $existing = TrelloMap::getMapping($ticket->getId());
+        if ($existing && !empty($existing['card_id'])) {
             // Bereits verknuepft — nichts doppelt anlegen.
+            //
+            // Liegt die Karte noch auf einem ANDEREN Board (Feld geleert,
+            // spaeter anderer Kunde gewaehlt), darf das Mapping nicht einfach
+            // reaktiviert werden: jede Agenten-Antwort ginge sonst als
+            // Kommentar auf das Board des frueheren Kunden.
+            // Erst verschieben; moveCardFor aktiviert nur bei Erfolg.
+            if (!hash_equals((string) $existing['board_id'], (string) $board->boardId)) {
+                $this->moveCardFor($ticket, $existing['card_id'], $board);
+                return;
+            }
             TrelloMap::setStatus($ticket->getId(), 'active');
             return;
         }
@@ -352,7 +363,8 @@ class TrelloSyncService {
             return 'ignored: no card';
         }
 
-        $ticketId = TrelloMap::getTicketId($card['id']);
+        // Nur aktive Mappings dieses Boards.
+        $ticketId = TrelloMap::getActiveTicketIdByCard($card['id'], $board->boardId);
         if (!$ticketId) {
             return 'ignored: card not linked';
         }
@@ -400,7 +412,8 @@ class TrelloSyncService {
             return 'ignored: incomplete';
         }
 
-        $ticketId = TrelloMap::getTicketId($card['id']);
+        // Nur aktive Mappings dieses Boards.
+        $ticketId = TrelloMap::getActiveTicketIdByCard($card['id'], $board->boardId);
         if (!$ticketId) {
             return 'ignored: card not linked';
         }
@@ -427,9 +440,20 @@ class TrelloSyncService {
         // Nebeneffekt: Notizen haben ThreadEntry-Typ N und werden von
         // onThreadEntry() gefiltert. Der Kommentar kann also nicht nach
         // Trello zurueckwandern — Loop-Schutz ohne Zusatzlogik.
+        //
+        // Als TEXT, nie als HTML: Trello-Kommentare sind Fremdtext. Ohne
+        // expliziten Body-Typ nimmt osTicket bei aktivem Rich-Text HTML an;
+        // Links, Bilder (Tracking-Pixel) und Formatierung aus dem Kommentar
+        // erschienen dann in einer internen Notiz, der Agenten vertrauen,
+        // und "a<b" wurde abgeschnitten.
+        //
+        // Vorher escapen: auch TextThreadEntryBody::getClean() schickt den
+        // Text durch Format::html_balance(), das "<b ..." als offenes Tag
+        // liest und den Rest verwirft. htmlchars() kodiert nicht doppelt,
+        // die Anzeige zeigt deshalb wieder genau den Originaltext.
         $errors = array();
         $entry = $ticket->getThread()->addNote(array(
-            'note'  => $text,
+            'note'  => new TextThreadEntryBody(Format::htmlchars($text)),
             'title' => 'Kommentar aus Trello',
         ), $errors);
 
