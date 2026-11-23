@@ -128,6 +128,13 @@ jobs:
       - name: actionlint
         uses: raven-actions/actionlint@v2
 
+  # Zentraler Security-Scan: gitleaks, TruffleHog, Trivy, Semgrep (alle blockierend).
+  # Semgrep blockiert nur neue Funde. Version: Commit des Release-Tags, siehe Kommentar.
+  security:
+    uses: studio-prisma/github-config-security-workflow/.github/workflows/security.yml@346fbc812810930cf8916ba683ceab0b1dbef033 # v1.0.1
+    with:
+      semgrep-rules: "p/php p/security-audit"
+
   # Single aggregating context for the branch ruleset. Required-status-check names
   # are job names, and the lint matrix produces one name per PHP version — those
   # would have to be re-registered on every version bump. This job is the only
@@ -135,7 +142,7 @@ jobs:
   gate:
     name: Gate
     runs-on: ubuntu-latest
-    needs: [lint, unit, structure, secrets, actionlint]
+    needs: [lint, unit, structure, secrets, security, actionlint]
     if: always()
     steps:
       - name: Fail unless every job succeeded
