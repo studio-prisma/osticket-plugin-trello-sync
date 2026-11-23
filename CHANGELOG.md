@@ -8,6 +8,10 @@ Solange die Hauptversion `0` ist, gilt: Minor-Sprünge können brechende Änderu
 
 ## [Unreleased]
 
+---
+
+## [0.6.1] — 2026-11-23
+
 ### Sicherheit
 - **Nach einem Board-Wechsel gehen Agenten-Antworten nicht mehr an den früheren Kunden.** Wurde das Board-Feld eines Tickets geleert und später ein anderes Board gewählt, reaktivierte das Plugin das alte Mapping, ohne die Karte zu verschieben. Jede öffentliche Antwort landete danach als Kommentar auf dem Board des früheren Kunden. Jetzt wird die Karte zuerst auf das neue Board verschoben; schlägt das fehl, bleibt der Sync stillgelegt.
 - **Das Mapping übernimmt das neue Board.** `TrelloMap::link()` aktualisierte bei einer bestehenden Verknüpfung nur den Zeitstempel. Nach einem Board-Wechsel zeigte das Mapping weiter auf das alte Board, und jedes weitere Ticket-Update verschob die Karte erneut.
