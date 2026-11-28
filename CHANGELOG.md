@@ -11,7 +11,7 @@ Solange die Hauptversion `0` ist, gilt: Minor-Sprünge können brechende Änderu
 ### Changed
 
 - CI: all GitHub actions pinned to commit SHAs instead of tags; actionlint runs from the shared
-  action in `github-config-security-workflow` with checksum check (security workflow v1.2.0).
+  action in `github-config-security-workflow` with checksum check (security workflow v1.2.1).
 
 ---
 
